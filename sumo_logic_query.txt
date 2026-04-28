@@ -1,0 +1,55 @@
+/* ============================================================
+Part 1: Sumo Logic Query — Slow /api/data Endpoint Detection
+============================================================
+Purpose : Find log entries where /api/data response time > 3s
+Alert : Trigger if more than 5 such entries in a 10-min window
+============================================================ */
+
+// Query (paste into Sumo Logic Log Search):
+
+_sourceCategory=*web*app* OR _sourceCategory=*nginx* OR _sourceCategory=*access*log*
+| parse "* * * [*] \"* * *\" * * \"*\" \"*\" *" as client_ip, ident, user, timestamp, method, path, protocol, status, bytes, referer, user_agent, response_time nodrop
+| where path = "/api/data"
+| where isNumeric(response_time)
+| where toDouble(response_time) > 3.0
+| count as slow_request_count
+| where slow_request_count > 5
+
+/* Alternative (if logs are JSON-formatted):
+
+_sourceCategory=*web*app*
+| json field=_raw "path" as path nodrop
+| json field=_raw "response_time" as response_time nodrop
+| json field=_raw "status" as status nodrop
+| where path = "/api/data"
+| where isNumeric(response_time)
+| where toDouble(response_time) > 3.0
+| timeslice 10m
+| count by _timeslice
+| where _count > 5
+
+============================================================ */
+
+/* ============================================================
+Alert Configuration
+============================================================
+- Query Window : 10 minutes (rolling)
+- Trigger Type : Static threshold
+- Condition : Count > 5
+- Severity : High
+- Notification : Email / SNS / PagerDuty (as configured)
+- Alert Name : "High Response Time on /api/data"
+- Description : "More than 5 requests to /api/data exceeded 3s response time in the last 10 minutes."
+============================================================ */
+
+/* Steps to create the Alert in Sumo Logic UI:
+
+1. Run the query above in Log Search
+2. Click "Save As" → "Alert"
+3. Set Time Range: Last 10 minutes
+4. Trigger Condition: Greater Than > 5
+5. Notification Channel: SNS / email / webhook
+6. Save alert
+
+NOTE: The Lambda function ARN (from Part 2) can be wired as a webhook notification target so the alert auto-triggers remediation.
+============================================================ */
