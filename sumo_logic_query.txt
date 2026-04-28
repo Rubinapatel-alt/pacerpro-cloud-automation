@@ -1,8 +1,0 @@
-_sourceCategory=web/app
-| where uri="/api/data"
-| where response_time > 3000
-| count by _timeslice
-Alert Logic:
-- Trigger when >5 log entries exceed 3 seconds
-- Window: 10 minutes
-- Action: Trigger Lambda function (simulated)
